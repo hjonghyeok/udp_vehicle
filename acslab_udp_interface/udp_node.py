@@ -122,7 +122,6 @@ class UDPInterface(Node):
 
     def initial_pose_callback(self, msg):
         q = msg.pose.pose.orientation
-
         # Quaternion -> Yaw (radian)
         siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
         cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
@@ -195,7 +194,6 @@ class UDPInterface(Node):
         # GPS 수신 전에는 송신하지 않음
         if not self.gps_received:
             return
-
         # 연결된 PC가 없으면 송신하지 않음
         if not clients:
             return
@@ -249,10 +247,8 @@ def main(args=None):
     node = UDPInterface()
     try:
         rclpy.spin(node)
-
     except KeyboardInterrupt:
         pass
-
     finally:
         node.close()
         node.destroy_node()
