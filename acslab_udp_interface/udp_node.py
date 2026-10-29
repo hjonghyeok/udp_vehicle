@@ -12,7 +12,7 @@ from trz_can_msg.msg import TRZSTRINFO
 from trz_can_msg.msg import TRZACCINFO
 from autoware_auto_vehicle_msgs.msg import VelocityReport
 from geometry_msgs.msg import PoseWithCovarianceStamped
-
+from ublox_msgs.msg import NavPVT
 
 import socket
 import threading
@@ -27,7 +27,7 @@ class UDPInterface(Node):
 
         # ROS2 Parameters
         self.declare_parameter('udp_local_port', 5001)
-        self.declare_parameter('allowed_ips', ['165.229.50.126'])
+        self.declare_parameter('allowed_ips', ['165.229.50.126', '165.229.132.136'])
         self.declare_parameter('send_rate_hz', 10.0)
         self.declare_parameter('gps_topic', '/ublox_gps_node/fix')
         self.declare_parameter('client_timeout', 6.0)
@@ -59,6 +59,7 @@ class UDPInterface(Node):
         self.str_sub = self.create_subscription(TRZSTRINFO, '/can/receive/TRZ_STR_INFO', self.str_callback, 10)
         self.acc_sub = self.create_subscription(TRZACCINFO, '/can/receive/TRZ_ACC_INFO', self.acc_callback, 10)
         self.initial_pose_sub = self.create_subscription(PoseWithCovarianceStamped, '/initialpose', self.initial_pose_callback, 10)
+        self.heading_sub = self.create_subscription(NavPVT, '/ublox_gps_node/navpvt', self.heading_callback, 10)
 
 
         # UDP Socket
@@ -97,7 +98,17 @@ class UDPInterface(Node):
 
     # Gear State Callback
     def gear_state_callback(self, msg):
-        self.gear_state = msg.trz_sft_gear_stat
+        if msg.trz_sft_gear_stat == 3:
+            self.gear_state = 2
+        elif msg.trz_sft_gear_stat == 1:
+            self.gear_state = 0
+        elif msg.trz_sft_gear_stat == 4:
+            self.gear_state = 1
+        elif msg.trz_sft_gear_stat == 2:
+            self.gear_state = 3
+
+    def heading_callback(self, msg):
+        self.heading_angle = msg.heading * 0.00001
 
     # Speed Callback
     def speed_callback(self, msg):
@@ -121,6 +132,7 @@ class UDPInterface(Node):
         self.gps_received = True
 
     def initial_pose_callback(self, msg):
+        return 
         q = msg.pose.pose.orientation
         # Quaternion -> Yaw (radian)
         siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
@@ -227,7 +239,8 @@ class UDPInterface(Node):
                     f'SEND -> {addr} | '
                     f'Time={timestamp:.6f} | '
                     f'Lat={self.latitude:.8f} | '
-                    f'Lon={self.longitude:.8f}'
+                    f'Lon={self.longitude:.8f} | '
+                    f'heading={self.heading_angle:.8f} | '
                 )
 
             except OSError as e:
